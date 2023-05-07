@@ -16,18 +16,14 @@ sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-
 sudo chmod +x /usr/local/bin/docker-compose
 
 # Install Python development dependencies for psycopg2
-sudo apt-get install -y libpq-dev python-dev
+sudo apt-get install -y libpq-dev python-dev curl python3-pip
 
-# Install pip3
+# Install psycopg2 dependencies
 sudo apt-get install -y python3-pip
 
 # Install psycopg2
 sudo apt-get install -y python3-psycopg2
 
-# Install psycopg2 dependencies
-#sudo apt-get install -y libpq-dev python-dev
-#sudo apt-get install -y python3-pip
-#sudo pip3 install psycopg2
 
 # Add PostgreSQL repository
 echo "deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
