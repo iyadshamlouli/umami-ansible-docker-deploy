@@ -22,7 +22,7 @@ sudo apt-get install -y libpq-dev python-dev
 sudo apt-get install -y python3-pip
 
 # Install psycopg2
-sudo pip3 install psycopg2
+sudo apt-get install -y python3-psycopg2
 
 # Install psycopg2 dependencies
 #sudo apt-get install -y libpq-dev python-dev
@@ -39,4 +39,4 @@ sudo apt-get update
 # Install PostgreSQL 15 client
 sudo apt-get install -y postgresql-client-15
 
-sudo pip install docker
+sudo apt-get install -y python3-docker
