@@ -1,0 +1,117 @@
+---
+- name: Deploy Umami Analytics with Docker
+  hosts: localhost
+  gather_facts: no
+  become: yes
+  vars:
+    # Set the port that Umami will run on
+    umami_port: 3000
+    
+    # Replace these variables with your desired database credentials
+    db_name: mydb
+    db_user: dbuser
+    db_password: 123456
+    
+    ansible_python_interpreter: /usr/bin/python3
+
+  tasks:
+    # Build the PostgreSQL Docker image
+    - name: Build PostgreSQL Docker image
+      docker_image:
+        name: postgres:15
+        tag: latest
+        source: build
+        build:
+          # Specify the path to the Dockerfile for the PostgreSQL image
+          path: ../docker/postgres-docker/
+        state: present
+
+    # Build the Umami Docker image
+    - name: Build Umami Docker image
+      # Build the Umami Docker image
+      docker_image:
+        name: ghcr.io/umami-software/umami:postgresql-latest
+        tag: latest
+        source: build
+        build:
+          # Specify the path to the Dockerfile for the Umami image
+          path: ../docker/umami-docker/
+        state: present
+
+    # Create a Docker network for the Umami and PostgreSQL containers to communicate on
+    - name: Create Docker network
+      docker_network:
+        name: postgres_network
+        driver_options:
+          com.docker.network.bridge.name: "docker0"
+
+    # Start the PostgreSQL container
+    - name: Start PostgreSQL container
+      docker_container:
+        name: postgres_container
+        image: postgres:15-alpine
+        restart_policy: always
+        env:
+          POSTGRES_USER: "{{ db_user }}"
+          POSTGRES_PASSWORD: "{{ db_password | quote }}"
+        networks:
+          - name: postgres_network
+        ports:
+          # Expose the PostgreSQL port to the host machine
+          - "5432:5432"
+        volumes:
+          # Mount a Docker volume to persist PostgreSQL data
+          - postgres_data:/var/lib/postgresql/data
+        networks_cli_compatible: yes
+
+    # Wait for the PostgreSQL container to be ready
+    - name: Wait for PostgreSQL container to be ready
+      command: "docker exec postgres_container pg_isready"
+      register: result
+      until: result.rc == 0
+      retries: 20
+      delay: 5
+
+    # Create the Umami database
+    - name: Create database
+      postgresql_db:
+        name: "{{ db_name }}"
+        login_user: "{{ db_user }}"
+        login_password: "{{ db_password }}"
+        login_host: localhost
+        login_port: 5432
+
+    # Create the Umami database user
+    - name: Create user
+      postgresql_user:
+        name: "{{ db_user }}"
+        password: "{{ db_password }}"
+        login_user: "{{ db_user }}"
+        login_password: "{{ db_password }}"
+        login_host: localhost
+        login_port: 5432
+        encrypted: yes
+        role_attr_flags: CREATEDB
+
+    # Start the Umami container
+    - name: Start Umami container
+      docker_container:
+        name: umami_container
+        image: ghcr.io/umami-software/umami:postgresql-latest
+        restart_policy: always
+        env:
+          # Modify these environment variables to reflect your database credentials
+          DATABASE_URL: "postgresql://{{ db_user }}:{{ db_password }}@postgres_container:5432/{{ db_name }}"
+          HASH_SALT: "random_salt" # Replace with your desired salt value
+        networks:
+          - name: postgres_network
+        ports:
+          - "8080:3000"
+        networks_cli_compatible: yes
+
+    - name: Print container information
+      docker_container_info:
+        name: "{{ item }}"
+      loop:
+        - postgres_container
+        - umami_container
